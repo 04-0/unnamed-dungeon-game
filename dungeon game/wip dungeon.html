@@ -1,0 +1,2379 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+
+    <style id="webmakerstyle">
+        canvas {
+            /* background: #222; */
+            top: 0;
+            left: 0;
+            position: absolute;
+        }
+        html {
+            overflow: hidden;
+            background: #222
+        }
+
+        .theFinale {
+background: linear-gradient(56deg, rgba(158,1,255,1) 0%, rgba(185,170,255,1) 40%, rgba(0,0,0,1) 40%, rgba(51,51,51,1) 60%, rgba(185,170,255,1) 60%, rgba(158,1,255,1) 100%);
+
+
+
+
+            background-repeat: repeat;
+            background-size: 200% 200%;
+            animation: gradient 15s infinite ease;
+	        height: 100vh;
+        }
+
+@keyframes gradient {
+	0% {
+		background-position: -0% -0%;
+	}
+	25% {
+		background-position: 50% 100%;
+	}
+    75% {
+        background-position: 100% 100%;
+    }
+    100% {
+        background-position: 0% 0%;
+    }
+}
+
+    </style>
+</head>
+
+<body>
+
+    <canvas class=''> </canvas>
+
+    <script src="./kontra.js"></script>
+    <script>
+        let { canvas, context } = kontra.init()
+        kontra.initInput()
+        let ct = []// player trails
+        let staticTiles = []
+        let activeTiles = []
+        // entities
+        let allies = []
+        let enemies = []
+        let bosses = []
+        let arenaIndex = 1
+        let bullets = []
+        let globalEnemy = {
+            healthMult: 0,
+            defenseMult: 0,
+            speedMult: 0,
+        }
+        let kills = kontra.getStoreItem('kills')
+        let deaths = kontra.getStoreItem('deaths')
+        let neededEnemies = 15
+        var PI = Math.PI;
+        var TAU = PI * 2;
+        var toRad = PI / 180;
+        var toDeg = 180 / PI;
+
+        canvas.height = window.innerHeight
+        canvas.width = window.innerWidth
+
+        let currentLook = { x: canvas.width / 2, y: canvas.height / 2 }
+        var help = (function () {
+            function DistSquared(pt1, pt2) {
+                var diffX = pt1.x - pt2.x
+                var diffY = pt1.y - pt2.y
+                return (diffX * diffX + diffY * diffY);
+            } function closest(start, arr) {
+                let close = arr[0]
+                let shortestDistance = DistSquared(start, arr[0])
+                for (i = 0; i < arr.length; i++) {
+                    var d = DistSquared(start, arr[i])
+                    if (d < shortestDistance) {
+                        close = arr[i]
+                        shortestDistance = d
+                    }
+                } return close
+            }
+            let help = {
+                closest,
+            }
+            return help
+        })();
+        var arenas = (function () {
+            // i dont need to make these objects because they arent needed later
+            function tutorial() {
+                createTeleporter(canvas.width-125, 100, 80, 80, {
+                    x: canvas.width / 2, y: canvas.height / 2
+                }, 'red', true, { x: canvas.width / 2, y: canvas.height / 2 })
+                createTeleporter(canvas.width/2, 100, 160, 160, {
+                    x: canvas.width / 2, y: canvas.height / 2
+                }, 'red', true, { x: canvas.width / 2, y: canvas.height / 2 },0.05)
+                createTeleporter(canvas.width/8, canvas.height-100, 60, 60, {
+                    x: -canvas.width, y: canvas.height/2
+                }, 'white', true)
+                createTeleporter(-canvas.width, 100, 60, 60, {
+                    x: canvas.width / 2, y: canvas.height / 2
+                }, 'white', true)
+                createTeleporter(canvas.width/2, canvas.height-100, 60, 60, {
+                    x: -canvas.width, y: canvas.height/2
+                }, 'orange', true)
+                createTeleporter(canvas.width/3, canvas.height-100, 60, 60, {
+                    x: -canvas.width, y: canvas.height/2
+                }, 'yellow', true)
+                createTeleporter(canvas.width-canvas.width/3, canvas.height-100, 60, 60, {
+                    x: -canvas.width, y: canvas.height/2
+                }, '#bfaaff', true)
+                createArrayText(canvas.width / 2, 250, [
+                    'welcome to the arena.',
+                    'WASD to move, shift to go faster.',
+                    'left mouse to shoot/attack primary.',
+                    'you can change controls and other in settings.',
+                    'this is a wip game, so expect bugs and whatnot.',
+                    'go though the cyan teleporter to start.'
+                ], '24px Arial', 10)
+                createArrayText(-canvas.width,50, [
+                    "BACK",
+                    "| BACK |"
+                ], '24px Arial')
+                createArrayText(125,200, [
+                    "STORY MODE",
+                ], '24px Arial')
+                createArrayText(125,225, [
+                    "start here"
+                ], '12px Arial')
+                createArrayText(canvas.width/2,225, [
+                    ">= 100 rounds on endless to unlock"
+                ], '12px Arial')
+                createArrayText(canvas.width-125,200, [
+                    "ENDLESS MODE",
+                ], '24px Arial')
+                createArrayText(canvas.width-125,225, [
+                    "complete story to unlock"
+                ], '12px Arial')
+                createArrayText(canvas.width/2,200, [
+                    "MULTIPLAYER",
+                ], '24px Arial')
+                createArrayText(canvas.width/2,canvas.height-25, [
+                    "INVENTORY",
+                    '| INVENTORY |'
+                ], '20px Arial')
+                createArrayText(canvas.width/3,canvas.height-25, [
+                    "SHOP",
+                    '| SHOP |'
+                ], '20px Arial')
+                createArrayText(canvas.width-canvas.width/3,canvas.height-25, [
+                    "EQUIP",
+                    '| EQUIP |'
+                ], '20px Arial')
+                createArrayText(canvas.width/8,canvas.height-25, [
+                    "SETTINGS",
+                    '| SETTINGS |'
+                ], '20px Arial')
+                createStaticWall(0, canvas.height / 2, 10, canvas.height)
+                createStaticWall(canvas.width / 2, 0, canvas.width, 10)
+                createStaticWall(canvas.width, canvas.height / 2, 10, canvas.height)
+                createStaticWall(canvas.width / 2, canvas.height, canvas.width, 10)
+                //player.y = canvas.height - 100
+            }
+            function arena1() {
+                return {
+                    neededEnemies: 10,
+                    centerXY: {
+                        x: canvas.width * 2,
+                        y: canvas.height / 2
+                    },
+                    bounds: [
+                        createStaticWall(canvas.width * 2 - canvas.width / 2, canvas.height / 2, 10, canvas.height),
+                        createStaticWall(canvas.width * 2 + canvas.width / 2, canvas.height / 2, 10, canvas.height),
+                        createStaticWall(canvas.width * 2, canvas.height, canvas.width, 10),
+                        createStaticWall(canvas.width * 2, 0, canvas.width, 10),
+                    ], cover: [
+
+                    ],
+                    enemySpawners: [
+                        createEnemySpawner(canvas.width * 2, 0, 1 / 400, canvas.width, 10)
+                    ],
+                }
+            } function arena2() {
+                return {
+                    neededEnemies: 100,
+                    centerXY: {
+                        x: canvas.width * 4,
+                        y: canvas.width / 2,
+                    },
+                    bounds: [
+                        createStaticWall(canvas.width * 4 - canvas.width / 2, canvas.height / 2, 10, canvas.height, 'red'),
+                        createStaticWall(canvas.width * 4 + canvas.width / 2, canvas.height / 2, 10, canvas.height, 'blue'),
+                        createStaticWall(canvas.width * 4, canvas.height, canvas.width, 10, 'green'),
+                        createStaticWall(canvas.width * 4, 0, canvas.width, 10, 'yellow'),
+                    ], cover: [
+
+                    ], text: [
+
+                    ], bosses: [
+
+                    ], enemySpawners: [
+                        createEnemySpawner(canvas.width * 4, canvas.height, 1 / 400, canvas.width, 10),
+                        createEnemySpawner(canvas.width * 4, 0, 1 / 400, canvas.width, 10)
+                    ],
+                }
+            }
+            function createRandArena() {
+
+            }
+            let arenas = {
+                tutorial,
+                arena1,
+                arena2,
+            }
+            return arenas
+        })();
+        // edit your own music here
+        let loadedAssets = 0
+        let assets = []
+        let boss1 = new Audio('./sounds/boss1.m4a')
+        let loop1 = new Audio('./sounds/loop1.m4a')
+        let menu1 = new Audio('./sounds/menu1.m4a')
+        boss1.load()
+        loop1.load()
+        menu1.load()
+        loop1.loop = true
+        boss1.loop = true
+        menu1.loop = true
+        boss1.onload = loadedAssets += 1
+        loop1.onload = loadedAssets += 1
+        menu1.onload = loadedAssets += 1
+        let currentTrack = menu1
+        
+        kontra.keyMap['ShiftLeft'] = 'shift'
+        let center = { x: 0.5, y: 0.5 }
+        let spawning = false
+        let turretStats = {
+            rotationSpeed: 1.5,
+            damage: 10,
+            attackSpeed: 1/25,
+            spread: 20,
+
+        }
+        let loadingScene = kontra.Scene({
+            objects: [
+                loadingBar = kontra.Sprite({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    width: 0,
+                    height: 20,
+                    //anchor: center,
+                    color: 'red',
+                    update() {
+                        this.width += kontra.randInt(2, 3)
+                        this.width += kontra.randInt(0, 0.008)
+                        this.x = canvas.width / 2
+                        if (this.width > canvas.width / 2) {
+                            this.width = canvas.width / 2
+                            this.opacity -= 0.05
+                            if (this.opacity <= 0.01) {
+                                loadingScene.destroy()
+                                loadingScene.remove(this)
+                                currentScene = camera
+                                menu1.play()
+                            }
+                        }
+                    }, render() {
+                        this.context.strokeStyle = 'white'
+                        this.context.beginPath()
+                        this.context.lineWidth = 8
+                        this.context.shadowBlur = 40
+                        this.context.shadowColor = 'white'
+                        this.context.rect(-canvas.width / 4, 0, canvas.width / 2, 20)
+                        //this.context.rect(-canvas.width / 4,0,canvas.width / 2,15)
+                        this.context.stroke()
+                        this.context.closePath()
+
+                        this.context.fillStyle = 'white'
+                        this.context.beginPath()
+                        this.context.lineWidth = 8
+                        this.context.shadowBlur = 40
+                        this.context.rect(-canvas.width / 4, 0, this.width, 20)
+                        this.context.font = 'bold 32px Arial'
+                        this.context.textAlign = 'center'
+                        this.context.fillText('loading assets (' + loadedAssets + '/' + assets.length + ')',0,-16)
+                        this.context.fill()
+                        this.context.closePath()
+                    }
+                })
+            ]
+        })
+        let currentScene = loadingScene
+        let camera = kontra.Scene({
+            objects: []
+        })
+        function randRGB() {
+            return 'rgb(' + kontra.randInt(0, 255) + ',' + kontra.randInt(0, 255) + ',' + kontra.randInt(0, 255) + ')'
+        }
+        function createFinalBoss(
+          ) {
+              let boss = kontra.Sprite({
+                  x: canvas.width*2,
+                  y: -250,anchor:center,
+                  width: canvas.width/2,
+                  height: canvas.width/2,
+                  color: '#bfaaff',
+                  stats: {
+                    base: {
+                        // 1,000,000
+                        health: 1000,
+                        maxHealth: 1000000,
+                    }
+                  },
+                  dt: 0,phase: 'entering',
+                  phases: ['bullet-hell','summon','explosion','touhou'],
+                  summon: 'default',
+                  timeToNextPhase: 0,
+                  update() {
+                    //if (this.y < canvas.width/2) this.y += 100
+                    this.timeToNextPhase += 0.1
+                    if (this.phase == 'entering') {
+                        this.x += kontra.angleToTarget(this,{x:canvas.width*2,y:canvas.height/2})
+                        this.y += kontra.angleToTarget(this,{x:canvas.width*2,y:canvas.height/2})
+                        this.dt += 1/500
+                    }
+                    if (this.phase == 'bullet-hell') {
+                        this.rotation += 0.05
+                        this.x += kontra.angleToTarget(this,{x:canvas.width*2,y:canvas.height/2})
+                        this.y += kontra.angleToTarget(this,{x:canvas.width*2,y:canvas.height/2})
+                        if (this.dt > 0.25) {
+                            createEnemy(this.x,this.y,10,25,'#bfaaff',{
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 25,
+                                range: 1,
+                                attackSpeed: 1 / 100,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 200,
+                                maxHealth: 200,
+                                defense: 0 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 3 + globalEnemy.speedMult,
+                                rotationSpeed: 0,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        })
+                        }
+                    }
+                    if (this.timeToNextPhase > 75) {
+                        this.timeToNextPhase = 0
+                        this.phase = this.phases[kontra.randInt(0,this.phases.length-1)]
+                        //let a = 'a'
+                        createFadingText(canvas.width*2,canvas.height/2,this.phase.toUpperCase(),6,'bold 64px Arial','#bfaaff')
+                    } if (this.dt > 0.25) {
+                        this.dt = 0
+                        if (this.summon == 'default') createEnemy(this.x,this.y,10,10,'#bfaaff')
+                        if (this.phase == 'touhou') {createEnemy(this.x,this.y,5,25,'#bfaaff',{
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 25,
+                                range: 1,
+                                attackSpeed: 1 / 100,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 75,
+                                maxHealth: 75,
+                                defense: 0 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 3 + globalEnemy.speedMult,
+                                rotationSpeed: 0.5,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        })
+                    }
+                    {createEnemy(this.x+10,this.y+10,5,25,'#bfaaff',{
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 25,
+                                range: 1,
+                                attackSpeed: 1 / 100,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 75,
+                                maxHealth: 75,
+                                defense: 0 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 3 + globalEnemy.speedMult,
+                                rotationSpeed: 0.5,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        })
+                    }
+                }
+                  }, render() {
+                      this.context.beginPath()
+                      this.context.fillStyle = this.color
+                      this.context.shadowBlur = 60
+                      this.context.shadowColor = this.color
+                      this.context.fillRect(0,0,this.width,this.height)
+                      this.context.globalAlpha = 0.3
+                      this.context.fillRect(-this.width/2,-this.height/2,this.width*2,this.height*2)
+                      this.context.fill()
+                      this.context.closePath()
+                  }
+              })
+              let bossHealthbar = kontra.Sprite({
+                  x:canvas.width*2,y:200,anchor:center,render(){
+                    this.context.beginPath()
+                this.context.lineWidth = 4
+                this.context.shadowBlur = 60
+                this.context.shadowColor = boss.color
+                this.context.strokeStyle=boss.color
+                //this.context.rect(-20, 40,1, 10)
+                this.context.rect(-canvas.width/4,0,canvas.width/2,40)
+                this.context.stroke()
+                this.context.closePath()
+
+                this.context.fillStyle = boss.color
+                this.context.beginPath()
+                this.context.lineWidth = 4
+                this.context.shadowBlur = 60
+                this.context.rect(-canvas.width/4,0,boss.stats.base.health / canvas.width/2,40)
+                this.context.fill()
+                this.context.closePath()
+                  }
+              })
+              camera.add(boss,bossHealthbar)
+              enemies.push(boss)
+        }
+        function createStaticWall(
+            x, y, w = 20, h = 20,
+            color = 'transparent') {
+            let tile = kontra.Sprite({
+                x: x, y: y, anchor: center,
+                width: w, height: h, color: color,
+                update() {
+                    if (kontra.collides(this, player)) {
+                        player.rotation += 0.8
+                        player.x -= player.cos
+                        player.y -= player.sin
+                    }
+                }, render() {
+                    this.context.beginPath()
+                    this.context.fillStyle = color
+                    this.context.fillRect(0,0,w,h)
+                    this.context.fill()
+                }
+            })
+            camera.add(tile); staticTiles.push(tile)
+        }
+        function createEnemy(
+            x, y, w = 10, h = 10, color = 'red',
+            stats = {
+                faction: {
+                    wantedTarget: player,
+                    targetedArr: allies,
+                    alliedArr: enemies,
+                }, weapons: {
+                    damage: 3,
+                    range: 1,
+                    attackSpeed: 1 / 120,
+                    atkSpeedDT: 0,
+                }, base: {
+                    health: 5,
+                    maxHealth: 5,
+                    defense: 0 + globalEnemy.defenseMult,
+                    regen: 0,
+                    perRegen: 1,
+                    regenInterval: 1 / 1000,
+                    speed: 2 + globalEnemy.speedMult,
+                    rotationSpeed: 1,
+                    rewards: {
+                        xp: 0,
+                        gold: 0,
+                    }
+                }, abilities: {
+
+                }
+            },
+        ) {
+            let enemy = kontra.Sprite({
+                x: x, y: y, width: w, height: h, ttl: Infinity,
+                rotation: 0, anchor: center, initialHealth: stats.base.health,
+                color: color, stats: stats, poisoned: false, update() {
+                    angle = kontra.angleToTarget(this, help.closest({ x: this.x, y: this.y }, this.stats.faction.targetedArr))
+                    if (this.rotation !== angle) {
+                        delta = angle - this.rotation
+                        if (delta > PI) delta -= TAU;
+                        if (delta < -PI) delta += TAU;
+                        theta = delta > 0 ? this.stats.base.rotationSpeed : -this.stats.base.rotationSpeed;
+                        this.rotation += kontra.degToRad(theta)
+                        this.x += Math.cos(this.rotation - kontra.degToRad(90)) * stats.base.speed
+                        this.y += Math.sin(this.rotation - kontra.degToRad(90)) * stats.base.speed
+                    }
+                    if (this.poisoned) {
+                        player.stats.primary.poison.pois += player.stats.primary.poison.interval
+                        if (player.stats.primary.poison.pois > 0.25) {
+                            this.stats.base.health -= player.stats.primary.poison.damage
+                            player.stats.primary.poison.pois = 0
+                            createFadingText(this.x, this.y, '-' + player.stats.primary.poison.damage, 0.4, '10px Arial', 'green')
+                        }
+                        enemyDead(this)
+                    }
+                    this.stats.weapons.atkSpeedDT += this.stats.weapons.attackSpeed
+                    this.stats.base.regen += this.stats.base.regenInterval
+                    if (this.stats.base.regen > 0.25) {
+                        this.stats.base.health += this.stats.base.perRegen
+                        this.stats.base.regen = 0
+                    }
+                    if (kontra.collides(this, player)) {
+                        healthBar.opacity = 3
+                        this.x -= Math.cos(this.rotation - kontra.degToRad(90)) * stats.base.speed * 4
+                        this.x -= Math.cos(this.rotation - kontra.degToRad(90)) * stats.base.speed * 4
+                        this.rotation += 1
+                        if (this.stats.weapons.atkSpeedDT > 0.25) {
+                            this.stats.weapons.atkSpeedDT = 0
+                            player.stats.base.health -= this.stats.weapons.damage
+                            createFadingText(this.x, this.y, '-' + this.stats.weapons.damage, 2, '16px Arial')
+                        }
+                    }
+                }
+            })
+            enemies.push(enemy)
+            camera.add(enemy)
+        }
+        function createEnemySpawner(
+            x, y, spawnDelay = 1 / 250,
+            w = 20, h = 20, color = 'red',
+            enem = {
+                x: kontra.randInt(x - w / 2, x + w / 2),
+                y: kontra.randInt(y - h / 2, y + w / 2),
+                width: 10,
+                height: 10,
+                color: 'red',
+                stats: {
+                    faction: {
+                        wantedTarget: player,
+                        targetedArr: allies,
+                        alliedArr: enemies,
+                    }, weapons: {
+                        damage: 2,
+                        range: 1,
+                        attackSpeed: 1 / 350,
+                        atkSpeedDT: 0,
+                    }, base: {
+                        health: 5,
+                        maxHealth: 5,
+                        defense: 0 + globalEnemy.defenseMult,
+                        healingSpeed: 0,
+                        speed: 1 + globalEnemy.speedMult,
+                        rotationSpeed: 1,
+                        rewards: {
+                            xp: 0,
+                            gold: 0,
+                        }
+                    },
+                }
+            }
+        ) {
+            let spawner = kontra.Sprite({
+                x: x, y: y, width: w, height: h,
+                anchor: center, color: color,
+                dt: 0, update() {
+                    this.dt += spawnDelay
+                    if (this.dt > 0.25 && spawning) {
+                        this.dt = 0
+                        createEnemy(
+                            kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                            kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                            enem.width,
+                            enem.height,
+                            enem.color,
+                            enem.stats,
+                        )
+                        //createEnemy(this.x,this.y)
+                    }
+                }, render() {
+                    this.context.beginPath()
+                    this.context.shadowBlur = 45
+                    this.context.shadowColor = this.color
+                    this.context.fillStyle = this.color
+                    this.context.fillRect(0, 0, this.width, this.height)
+                }
+            })
+            camera.add(spawner)
+            activeTiles.push(spawner)
+        }
+        function createStaticText(
+            x, y, text, fontT = '32px fixed-width', textColor = 'white'
+        ) {
+            let txt = kontra.Text({
+                x: x, y: y,
+                anchor: center,
+                render() {
+                    this.context.fillStyle = textColor
+                    this.context.font = fontT
+                    this.context.beginPath()
+                    this.context.fillText(text, 0, 0)
+
+                }
+            })
+            camera.add(txt)
+        }
+        function createArrayText(
+            x, y,
+            textArr = ['a', 'b', 'c'],
+            fontT = '32px fixed-width', sustain = 5, textColor = 'white',
+            loop = true
+        ) {
+            let txt = kontra.Text({
+                x: x, y: y, anchor: center,
+                textIndex: 0,
+                dt: 0, render() {
+                    this.dt += 1 / sustain / 100
+                    if (this.dt > 0.25) {
+                        this.dt = 0
+                        this.textIndex += 1
+                        if (this.textIndex >= textArr.length) {
+                            if (loop) this.textIndex = 0
+                            else this.opacity = 0
+                        }
+                    }
+                    this.context.fillStyle = textColor
+                    this.context.font = fontT
+                    this.context.textAlign = 'center'
+                    this.context.beginPath()
+                    this.context.fillText(textArr[this.textIndex], 0, 0)
+                }
+            }); camera.add(txt)
+        }
+        function createFadingText(
+            x, y, text, sustain = 4,
+            fontT = '16px Arial', textColor = 'white', dy = 0,
+        ) {
+            let txt = kontra.Text({
+                x: x, y: y, opacity: 0, dy: dy,
+                anchor: center, ttl: sustain * 100,
+                render() {
+                    this.advance()
+                    this.ttl -= 1
+                    let refinedSustain = sustain * 100
+                    if (this.ttl > refinedSustain - 35&&this.opacity<=1) this.opacity += 0.1
+                    if (this.ttl < 20) this.opacity -= 0.1
+                    this.context.beginPath()
+                    this.context.font = fontT
+                    this.context.fillStyle = textColor
+                    this.context.textAlign = 'center'
+                    this.context.fillText(text, 0, 0)
+                }
+            })
+            camera.add(txt)
+        }
+        function createTeleporter(
+            x, y, w = 40, h = 40,
+            dest = { x: canvas.width / 2, y: canvas.height / 2 },
+            color = 'cyan', camT = true, camDest = dest,
+            spinSpeed=0.1
+        ) {
+            let tele = kontra.Sprite({
+                x: x,
+                y: y,
+                anchor: center,
+                dest: dest,
+                camT: camT,
+                camDest: camDest,
+                width: w,
+                height: h,
+                color: color,
+                dt: 0,
+                inside: kontra.Sprite({
+                    width: w / 2,
+                    height: h / 2,
+                    x: w / 2,
+                    y: h / 2,
+                    //opacity: tele.opacity,
+                    anchor: center,
+                    render() {
+                        this.context.fillStyle = color
+                        this.context.beginPath()
+                        this.context.globalAlpha = 0.7
+                        this.context.rect(0, 0, this.width, this.height)
+                        this.context.fill()
+                        this.rotation += spinSpeed
+                    }
+                }),
+                render() {
+                    this.context.globalAlpha = 0.5
+                    this.context.fillStyle = this.color
+                    this.context.beginPath()
+                    this.context.rect(0, 0, this.width, this.height)
+                    this.context.fill()
+                    this.context.closePath()
+                    this.inside.render()
+                    this.rotation -= spinSpeed / 2
+                    this.dt += 1 / 45
+                    if (this.dt > 0.25) {
+                        this.dt = 0
+                        playerTrail(this.x, this.y, kontra.randInt(-1, 1), kontra.randInt(-1, 1), this.color, w + h)
+                    }
+                }, 
+                onTeleport: function() {
+
+                },
+                teleport: function(teleporter) {
+                    if (teleporter=='story') {
+                        spawning = true
+                    } 
+                },
+
+            })
+            camera.add(tele)
+            staticTiles.push(tele)
+        }
+        function playerTrail(
+            x, y,
+            dx = 0, dy = 0,
+            color = 'cyan', ttl = 100
+        ) {
+            let t = kontra.Sprite({
+                x: x,
+                y: y,
+                width: 5,
+                height: 5,
+                color: color,
+                dx: dx,
+                dy: dy,
+                anchor: center,
+                ttl: ttl,
+                update() {
+                    this.advance()
+                    this.ttl -= 1
+                    if (this.ttl < 20) {
+                        this.opacity -= 0.1
+                    }
+                },
+            })
+            ct.push(t)
+            camera.add(t)
+        }
+        function shootLaser(
+            x, y, rotation, w = 15, h = 3,
+            color = 'cyan', ttl = player.stats.primary.range,
+            stats={
+                damage: player.stats.primary.damage,
+                speed: player.stats.primary.projSpeed,
+                piercesLeft: player.stats.primary.pierces,
+            }
+        ) {
+            let bullet = kontra.Sprite({
+                x: x, y: y, color: color,stats:stats,
+                width: w, height: h, ttl: ttl,
+                anchor: center, rotation: rotation,
+                opacity: 0, update() {
+                    if (this.ttl > ttl - 20) if (this.opacity < 1) this.opacity += 0.1
+                    this.ttl -= 1
+                    this.x += Math.cos(this.rotation) * this.stats.speed
+                    this.y += Math.sin(this.rotation) * this.stats.speed
+                    if (this.ttl < 20) this.opacity -= 0.05
+
+                }
+            });
+            camera.add(bullet)
+            bullets.push(bullet)
+        }
+        function createTurret(
+            x,y,r=8,stats={
+                base: {
+                    health: 20,
+
+                }
+            }
+        ) {
+            let turret = kontra.Sprite({
+                x:x,y:y,radius:r,dt:0,stats:stats,
+                width:r,height:r,render(){
+                    this.context.beginPath()
+                    this.context.fillStyle = 'cyan'
+                    this.context.arc(0,0,this.radius,0,Math.PI*2)
+                    this.context.fill()},update(){
+                        angle = kontra.angleToTarget(this, help.closest({ x: this.x, y: this.y },enemies))
+                        this.dt+=turretStats.attackSpeed
+                        if (this.dt>0.25){this.dt=0;shootLaser(this.x,this.y,this.rotation-kontra.degToRad(90),15,3,'cyan',60,{
+                            damage: turretStats.damage,
+                            speed: 3,
+                            piercesLeft: 1,
+                        })}
+                        if (this.rotation !== angle) {
+                            delta = angle - this.rotation
+                            if (delta > PI) delta -= TAU;
+                            if (delta < -PI) delta += TAU;
+                            theta = delta > 0 ? turretStats.rotationSpeed : -turretStats.rotationSpeed;
+                            this.rotation += kontra.degToRad(theta)
+                        }
+                    }
+            })
+            camera.add(turret)
+            allies.push(turret)
+        }
+        let storyTeleporter = {x:125,y:100}
+        createTeleporter(125, 100, 80, 80, {
+                    x: canvas.width * 2, y: canvas.height / 2
+                }, 'cyan', true, { x: canvas.width * 2, y: canvas.height / 2 })       
+        let player = kontra.Sprite({
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            width: 15, height: 25,
+            anchor: center,
+            cos: null, sin: null,
+            stats: {
+                base: {
+                    health: 40,
+                    maxHealth: 40,
+                    perRegen: 2,
+                    regenInterval: 1 / 400,
+                    regen: 0,
+                    defense: 0,
+                    speedMult: 2,
+                },
+                primary: {
+                    damage: 3,
+                    attackSpeed: 1 / 90,
+                    atkSpeedDT: 0,
+                    range: 50,
+                    projSpeed: 5,
+                    projAmount: 1,
+                    spread: 0.1,
+                    pierces: 1,
+                    autoturret: false,
+                    explosion: {
+                        knockback: 0.6,
+                        radius: 0,
+                        initialDamage: 5,
+                        radialDiffusion: 0.03,
+                        ignite: false,
+                    }, poison: {
+                        active: false,
+                        damage: 4,
+                        interval: 1 / 100,
+                        pois: 0,
+                    },
+                },
+                deployables: {
+                    mine: {
+                        unlocked: false,
+                        deployDT: 0,
+                        deployInterval: 1/500
+                    },
+                    turret: {
+                        unlocked: false,
+                        deployDT: 0,
+                        deployInterval: 1/1000,
+                    },
+                    healer: {
+                        unlocked: false,
+                        deployDT: 0,
+                    }
+                },
+                other: {
+                    trailBurns: false,
+                    savingGrace: false,
+                }
+            },
+            render() {
+                this.context.fillStyle = 'cyan';
+                this.context.beginPath();
+                this.context.moveTo(0, 0);
+                this.context.lineTo(this.width, 0);
+                this.context.lineTo(this.width / 2, this.height);
+                this.context.fill();
+                this.context.closePath()
+                this.context.strokeStyle = 'white'
+            },
+            update() {
+                if (this.stats.deployables.turret.unlocked) this.stats.deployables.turret.deployDT += this.stats.deployables.turret.deployInterval
+                if (this.stats.deployables.turret.deployDT>0.25 ) {
+                    this.stats.deployables.turret.deployDT = 0
+                    createTurret(this.x,this.y,3)
+                }
+                if (this.stats.primary.atkSpeedDT < 0.25 && kontra.pointerPressed('left')||this.stats.primary.atkSpeedDT < 0.25&&this.stats.primary.autoturret) {
+                    this.stats.primary.atkSpeedDT += this.stats.primary.attackSpeed
+                } if (this.stats.primary.atkSpeedDT > 0.25) {
+                    this.stats.primary.atkSpeedDT = 0
+                    //for (let i = 0; i < this.stats.primary.projAmount; i++) {
+                    shootLaser(this.x, this.y, kontra.angleToTarget(this, { x: this.x + this.cos, y: this.y + this.sin }))
+                    if (this.stats.primary.projAmount >= 2) shootLaser(this.x, this.y, kontra.angleToTarget(this, { x: this.x - this.cos, y: this.y - this.sin }))
+                    if (this.stats.primary.projAmount >= 3) shootLaser(this.x, this.y, this.rotation + kontra.degToRad(90))
+                    if (this.stats.primary.projAmount >= 4) shootLaser(this.x, this.y, this.rotation - kontra.degToRad(90))
+                    if (this.stats.primary.autoturret) shootLaser(this.x, this.y, kontra.angleToTarget(this, help.closest(this, enemies))-kontra.degToRad(90))
+                    //}
+                }
+                if (this.stats.base.health < this.stats.base.maxHealth) this.stats.base.regen += this.stats.base.regenInterval
+                if (this.stats.base.regen > 0.25) {
+                    this.stats.base.regen = 0
+                    //if (this.stats.base.health < this.stats.base.maxHealth) {
+                        this.stats.base.health += this.stats.base.perRegen
+                        createFadingText(this.x,this.y,'+' + this.stats.base.perRegen,0.3,'16px Arial','lime',-2)
+                    //}
+                }
+                this.cos = Math.cos(this.rotation + kontra.degToRad(90))
+                this.sin = Math.sin(this.rotation + kontra.degToRad(90))
+                if (kontra.keyPressed("a")) {
+                    this.rotation -= 0.05
+                } if (kontra.keyPressed("d")) {
+                    this.rotation += 0.05
+                } if (kontra.keyPressed("w")) {
+                    this.x += this.cos * 2
+                    this.y += this.sin * 2
+                    playerTrail(this.x, this.y)
+                    if (kontra.keyPressed("shift")) {
+                        this.x += this.cos * this.stats.base.speedMult
+                        this.y += this.sin * this.stats.base.speedMult
+                    }
+                } if (kontra.keyPressed("s")) {
+                    this.x -= this.cos
+                    this.y -= this.sin
+                }
+
+            }
+        }) 
+        let healthBar = kontra.Sprite({
+            x:0,y:0,update(){this.x=player.x;this.y=player.y},
+            color:'white',
+            anchor:center,render() {
+                this.context.beginPath()
+                this.context.lineWidth = 4
+                this.context.shadowBlur = 40
+                this.context.shadowColor = this.color
+                this.context.strokeStyle=this.color
+                //this.context.rect(-20, 40,1, 10)
+                this.context.rect(-player.stats.base.maxHealth/2,20,player.stats.base.maxHealth,10)
+                this.context.stroke()
+                this.context.closePath()
+
+                this.context.fillStyle = this.color
+                this.context.beginPath()
+                this.context.lineWidth = 4
+                this.context.shadowBlur = 40
+                this.context.rect(-player.stats.base.maxHealth/2, 20,player.stats.base.health / 40 * player.stats.base.maxHealth, 10)
+                this.context.fill()
+                this.context.closePath()
+                if (this.opacity >0) this.opacity -= 0.1
+                if (this.opacity <0) this.opacity = 0
+                if(player.stats.base.health < 10&&this.color!='red')this.color='red'
+                if(this.color=='red'&&player.stats.base.health>10)this.color='white' 
+            }
+        })
+        camera.add(player,healthBar)
+        allies.push(player)
+        function checkForArenaUpdate() {
+            neededEnemies = arenaIndex * 20
+            //neededEnemies = 2
+            if (arenaIndex == 1) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'more bullets',
+                    6, '32px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'oh and more enemies',
+                    6, '16px Arial'
+                ); player.stats.primary.projAmount = 2
+                //createEnemySpawner(canvas.width * 2, 0, 1 / 400, canvas.width, 10)
+                createEnemySpawner(canvas.width * 2 - canvas.width / 2, canvas.height / 2, 1 / 400, 10, canvas.height)
+            }
+            if (arenaIndex == 2) {
+                menu1.pause()
+                loop1.play()
+                currentTrack = loop1
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'more range',
+                    6, '32px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'more enemies, and increased enemy health',
+                    6, '16px Arial'
+                );
+                player.stats.primary.range += 25
+                //createEnemySpawner(canvas.width * 2 - canvas.width / 2, canvas.height / 2, 1 / 400, 10, canvas.height)
+                createEnemySpawner(canvas.width * 2 + canvas.width / 2, canvas.height / 2, 1 / 300, 10, canvas.height)
+            }
+            if (arenaIndex == 3) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'more attack speed',
+                    6, '32px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'enemy defense. think about it.',
+                    6, '16px Arial'
+                ); player.stats.primary.attackSpeed = 1 / 70
+                globalEnemy.healthMult += 3
+                createEnemySpawner(canvas.width * 2, canvas.height, 1 / 300, canvas.width, 10)
+                //createEnemySpawner(canvas.width * 2 + canvas.width / 2, canvas.height / 2, 1 / 400, 10, canvas.height)
+            }
+            if (arenaIndex == 4) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'increased range',
+                    6, '32px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'new variant of enemy, slow, but tanky',
+                    6, '16px Arial'
+                ); player.stats.primary.range += 50
+                createEnemySpawner(canvas.width * 2 - canvas.width / 2, canvas.height - 100, 1 / 800, 10, 125, '#bfaaff',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 15,
+                        height: 15,
+                        color: '#bfaaff',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 3,
+                                range: 1,
+                                attackSpeed: 1 / 200,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 50 + globalEnemy.healthMult,
+                                maxHealth: 50 + globalEnemy.healthMult,
+                                defense: 1 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 0.8 + globalEnemy.speedMult,
+                                rotationSpeed: 0.5,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 5) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'more firerate',
+                    6, '32px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'more tanks. thats it.',
+                    6, '16px Arial'
+                ); player.stats.primary.attackSpeed = 1 / 60
+                createEnemySpawner(canvas.width * 2 + canvas.width / 2, canvas.height - 100, 1 / 1000, 10, 125, '#bfaaff',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 15,
+                        height: 15,
+                        color: '#bfaaff',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 3,
+                                range: 1,
+                                attackSpeed: 1 / 200,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 50 + globalEnemy.healthMult,
+                                maxHealth: 50 + globalEnemy.healthMult,
+                                defense: 1 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 0.8 + globalEnemy.speedMult,
+                                rotationSpeed: 0.5,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 6) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'more damage',
+                    6, '32px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'even more tanks, and increased health.',
+                    6, '16px Arial'
+                ); player.stats.primary.damage += 2
+                createEnemySpawner(canvas.width * 2 + canvas.width / 2, 100, 1 / 1000, 10, 125, '#bfaaff',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 15,
+                        height: 15,
+                        color: '#bfaaff',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 3,
+                                range: 1,
+                                attackSpeed: 1 / 200,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 50 + globalEnemy.healthMult,
+                                maxHealth: 50 + globalEnemy.healthMult,
+                                defense: 1 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 0.8 + globalEnemy.speedMult,
+                                rotationSpeed: 0.5,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 7) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'even more firerate',
+                    6, '32px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'the last of the tanks.',
+                    6, '16px Arial'
+                ); player.stats.primary.attackSpeed = 1 / 50
+                createEnemySpawner(canvas.width * 2 - canvas.width / 2, 100, 1 / 800, 10, 125, '#bfaaff',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 15,
+                        height: 15,
+                        color: '#bfaaff',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 3,
+                                range: 1,
+                                attackSpeed: 1 / 200,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 50 + globalEnemy.healthMult,
+                                maxHealth: 50 + globalEnemy.healthMult,
+                                defense: 1 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 0.8 + globalEnemy.speedMult,
+                                rotationSpeed: 0.5,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 8) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'player max health',
+                    6, '32px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'a new enemy type, the healer.',
+                    6, '16px Arial'
+                )
+                player.stats.base.maxHealth += 10
+                createEnemySpawner(canvas.width * 2 + canvas.width / 2 - 100, canvas.height, 1 / 900, 125, 10, '#afa',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 15,
+                        height: 15,
+                        color: '#afa',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 1,
+                                range: 1,
+                                attackSpeed: 1 / 50,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 35 + globalEnemy.healthMult,
+                                maxHealth: 35 + globalEnemy.healthMult,
+                                defense: 0 + globalEnemy.defenseMult,
+                                regen: 0,
+                                regenInterval: 1 / 300,
+                                perRegen: 2,
+                                speed: 1 + globalEnemy.speedMult,
+                                rotationSpeed: 2,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 9) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'your trail now burns enemies.',
+                    6, '32px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'more healers',
+                    6, '16px Arial'
+                )
+                createEnemySpawner(canvas.width * 2 - canvas.width / 2 + 100, canvas.height, 1 / 900, 125, 10, '#afa',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 15,
+                        height: 15,
+                        color: '#afa',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 1,
+                                range: 1,
+                                attackSpeed: 1 / 50,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 35 + globalEnemy.healthMult,
+                                maxHealth: 35 + globalEnemy.healthMult,
+                                defense: 0 + globalEnemy.defenseMult,
+                                regen: 0,
+                                regenInterval: 1 / 300,
+                                perRegen: 2,
+                                speed: 1 + globalEnemy.speedMult,
+                                rotationSpeed: 2,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 10) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'more player regen speed.',
+                    6, '32px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'healer man+',
+                    6, '16px Arial'
+                )
+                player.stats.base.perRegen += 2
+                createEnemySpawner(canvas.width * 2 + canvas.width / 2 - 100, 0, 1 / 900, 125, 10, '#afa',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 15,
+                        height: 15,
+                        color: '#afa',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 1,
+                                range: 1,
+                                attackSpeed: 1 / 50,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 35 + globalEnemy.healthMult,
+                                maxHealth: 35 + globalEnemy.healthMult,
+                                defense: 0 + globalEnemy.defenseMult,
+                                regen: 0,
+                                regenInterval: 1 / 300,
+                                perRegen: 2,
+                                speed: 1 + globalEnemy.speedMult,
+                                rotationSpeed: 2,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 11) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'increased damage.',
+                    6, '32px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'the last of the healers.',
+                    6, '16px Arial'
+                ); player.stats.primary.damage += 1
+                createEnemySpawner(canvas.width * 2 - canvas.width / 2 + 100, 0, 1 / 900, 125, 10, '#afa',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 15,
+                        height: 15,
+                        color: '#afa',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 1,
+                                range: 1,
+                                attackSpeed: 1 / 50,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 35 + globalEnemy.healthMult,
+                                maxHealth: 35 + globalEnemy.healthMult,
+                                defense: 0 + globalEnemy.defenseMult,
+                                regen: 0,
+                                regenInterval: 1 / 300,
+                                perRegen: 2,
+                                speed: 1 + globalEnemy.speedMult,
+                                rotationSpeed: 2,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 12) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'your primary weapon now poisons enemies.',
+                    6, '32px Arial'
+                ); createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'increased health much more.',
+                    6, '16px Arial'
+                )
+                globalEnemy.healthMult += 10
+                player.stats.primary.poison.active = true
+            }
+            if (arenaIndex == 13) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'more poison damage.',
+                    6, '32px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'new enemy type, the berserker, does massive damage.',
+                    6, '16px Arial'
+                )
+                player.stats.primary.poison.damage += 2
+                createEnemySpawner(canvas.width * 2 + canvas.width / 2, 250, 1 / 600, 10, 125, '#fff7aa',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 15,
+                        height: 15,
+                        color: '#fff7aa',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 15,
+                                range: 1,
+                                attackSpeed: 1 / 50,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 20 + globalEnemy.healthMult,
+                                maxHealth: 20 + globalEnemy.healthMult,
+                                defense: 2 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 1.5 + globalEnemy.speedMult,
+                                rotationSpeed: 1,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 14) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    '+poison interval.',
+                    6, '32px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'more beserkers.',
+                    6, '16px Arial'
+                )
+                player.stats.primary.poison.interval = 1/50
+                createEnemySpawner(canvas.width * 2 - canvas.width / 2, 250, 1 / 400, 10, 125, '#fff7aa',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 15,
+                        height: 15,
+                        color: '#fff7aa',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 15,
+                                range: 1,
+                                attackSpeed: 1 / 50,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 20 + globalEnemy.healthMult,
+                                maxHealth: 20 + globalEnemy.healthMult,
+                                defense: 2 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 2 + globalEnemy.speedMult,
+                                rotationSpeed: 1,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 15) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'one more projectile',
+                    6, '32px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'more beserkers, and increased movement speed.',
+                    6, '16px Arial'
+                )
+                player.stats.primary.projAmount += 1
+                globalEnemy.healthMult += 1
+                createEnemySpawner(canvas.width * 2 + canvas.width / 2, canvas.height - 250, 1 / 600, 10, 125, '#fff7aa',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 15,
+                        height: 15,
+                        color: '#fff7aa',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 15,
+                                range: 1,
+                                attackSpeed: 1 / 50,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 20 + globalEnemy.healthMult,
+                                maxHealth: 20 + globalEnemy.healthMult,
+                                defense: 2 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 2 + globalEnemy.speedMult,
+                                rotationSpeed: 1,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 16) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'attack speed.',
+                    6, '32px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'the last of the beserkers.',
+                    6, '16px Arial'
+                )
+                player.stats.primary.attackSpeed = 1 / 50
+                globalEnemy.speedMult += 1
+                createEnemySpawner(canvas.width * 2 - canvas.width / 2, canvas.height - 250, 1 / 600, 10, 125, '#fff7aa',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 15,
+                        height: 15,
+                        color: '#fff7aa',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 15,
+                                range: 1,
+                                attackSpeed: 1 / 50,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 20 + globalEnemy.healthMult,
+                                maxHealth: 20 + globalEnemy.healthMult,
+                                defense: 2 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 2 + globalEnemy.speedMult,
+                                rotationSpeed: 1,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 17) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'even more firerate.',
+                    6, '32px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'nothing ;3',
+                    6, '16px Arial'
+                )
+                player.stats.primary.attackSpeed = 1 / 40
+            }
+            if (arenaIndex == 18) {
+                    loop1.pause()
+                    boss1.play()
+                    currentTrack = boss1
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'autoturret: fires at the nearest enemy',
+                    6, '32px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'new boss type, super default.',
+                    6, '16px Arial'
+                )
+                player.stats.primary.autoturret = true
+                createEnemySpawner(canvas.width * 2, canvas.width/2, 1 / 2000, 80, 80, 'red',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 20,
+                        height: 20,
+                        color: 'red',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 10,
+                                range: 2,
+                                attackSpeed: 1 / 140,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 750 + globalEnemy.healthMult,
+                                maxHealth: 750 + globalEnemy.healthMult,
+                                defense: 20 + globalEnemy.defenseMult,
+                                
+                                speed: 1 + globalEnemy.speedMult,
+                                rotationSpeed: 2,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 19) {
+                    loop1.pause()
+                    boss1.play()
+                    currentTrack = boss1
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'you can now deploy a turret.',
+                    6, '32px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'new boss type, super tank.',
+                    6, '16px Arial'
+                )
+                //player.stats.primary.turret.unlocked = true
+                createEnemySpawner(canvas.width * 2, canvas.width/3, 1 / 4000, 80, 80, 'purple',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 60,
+                        height: 60,
+                        color: 'purple',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 40,
+                                range: 2,
+                                attackSpeed: 1 / 100,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 2000 + globalEnemy.healthMult,
+                                maxHealth: 2000 + globalEnemy.healthMult,
+                                defense: 20 + globalEnemy.defenseMult,
+                                
+                                speed: 0.3 + globalEnemy.speedMult,
+                                rotationSpeed: 0.3,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 20) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'nothing...',
+                    6, '32px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'new boss type, super healer.',
+                    6, '16px Arial'
+                )
+                createEnemySpawner(canvas.width * 2, canvas.width/4, 1 / 4000, 80, 80, 'green',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 60,
+                        height: 60,
+                        color: 'green',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 40,
+                                range: 2,
+                                attackSpeed: 1 / 100,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 1000 + globalEnemy.healthMult,
+                                maxHealth: 1000 + globalEnemy.healthMult,
+                                defense: 20 + globalEnemy.defenseMult,
+                                regen: 0,
+                                regenInterval: 1/2000,
+                                perRegen: 100,
+                                speed: 1 + globalEnemy.speedMult,
+                                rotationSpeed: 0.8,
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 21) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'max health, and health regen',
+                    6, '32px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'new boss type, super beserker.',
+                    6, '16px Arial'
+                )
+                player.stats.base.maxHealth += 20
+                player.stats.base.perRegen += 2
+                createEnemySpawner(canvas.width * 2, 100, 1 / 4000, 80, 80, 'yellow',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 60,
+                        height: 60,
+                        color: 'yellow',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 200,
+                                range: 2,
+                                attackSpeed: 1 / 500,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 500 + globalEnemy.healthMult,
+                                maxHealth: 500 + globalEnemy.healthMult,
+                                defense: 20 + globalEnemy.defenseMult,
+                                speed: 3 + globalEnemy.speedMult,
+                                rotationSpeed: 0.8,
+                            },
+                        }
+                    }
+                )
+                
+            }
+            if (arenaIndex == 22) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'a new deployable, the mine',
+                    6, '32px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'new enemy type, speedster.',
+                    6, '16px Arial'
+                )
+                createEnemySpawner(canvas.width * 2-canvas.width/2+250, canvas.height, 1 / 25, 125, 10, 'skyblue',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 7,
+                        height: 7,
+                        color: 'skyblue',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 0.5,
+                                range: 2,
+                                attackSpeed: 1 / 50,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 20 + globalEnemy.healthMult,
+                                maxHealth: 20 + globalEnemy.healthMult,
+                                defense: 0 + globalEnemy.defenseMult,
+                                speed: 2 + globalEnemy.speedMult,
+                                rotationSpeed: 1.5,
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 23) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'another projectile.',
+                    6, '32px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'more speedsters.',
+                    6, '16px Arial'
+                )
+                player.stats.primary.projAmount += 1
+                createEnemySpawner(canvas.width * 2+canvas.width/2-250, canvas.height, 1 / 25, 125, 10, 'skyblue',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 7,
+                        height: 7,
+                        color: 'skyblue',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 0.5,
+                                range: 2,
+                                attackSpeed: 1 / 50,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 20 + globalEnemy.healthMult,
+                                maxHealth: 20 + globalEnemy.healthMult,
+                                defense: 0 + globalEnemy.defenseMult,
+                                speed: 2 + globalEnemy.speedMult,
+                                rotationSpeed: 1.5,
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 24) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'firerate.',
+                    6, '32px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'more speedsters.',
+                    6, '16px Arial'
+                )
+                player.stats.primary.attackSpeed = 1/30
+                createEnemySpawner(canvas.width * 2+canvas.width/2-250, 0, 1 / 25, 125, 10, 'skyblue',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 7,
+                        height: 7,
+                        color: 'skyblue',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 0.5,
+                                range: 2,
+                                attackSpeed: 1 / 100,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 20 + globalEnemy.healthMult,
+                                maxHealth: 20 + globalEnemy.healthMult,
+                                defense: 0 + globalEnemy.defenseMult,
+                                speed: 2 + globalEnemy.speedMult,
+                                rotationSpeed: 1.5,
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 25) {
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'EQUIPMENT UPGRADE',
+                    6, '64px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'damage.',
+                    6, '32px Arial'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'the end of the speedsters.',
+                    6, '16px Arial'
+                )
+                createEnemySpawner(canvas.width * 2-canvas.width/2+250, 0, 1 / 25, 125, 10, 'skyblue',
+                    {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 7,
+                        height: 7,
+                        color: 'skyblue',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 0.5,
+                                range: 2,
+                                attackSpeed: 1 / 50,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 20 + globalEnemy.healthMult,
+                                maxHealth: 20 + globalEnemy.healthMult,
+                                defense: 0 + globalEnemy.defenseMult,
+                                speed: 2 + globalEnemy.speedMult,
+                                rotationSpeed: 1.5,
+                            },
+                        }
+                    }
+                )
+            }
+            if (arenaIndex == 27) {
+                canvas.classList.add('theFinale')
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2,
+                    'uh oh',
+                    8, '64px Arial','#bfaaff'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 40,
+                    'its here',
+                    8, '32px Arial','#bfaaff'
+                )
+                createFadingText(
+                    canvas.width * 2,
+                    canvas.height / 2 + 60,
+                    'you better get ready',
+                    8, '16px Arial','#bfaaff'
+                )
+                for (let i = 0;i<activeTiles.length;i++) {
+                    activeTiles[i].ttl = 0
+                }
+                for (let i = 0;i<enemies.length;i++) {
+                    enemies[i].ttl = 0
+                }
+                createFinalBoss()
+                createEnemySpawner(canvas.width * 2 + canvas.width / 2, canvas.height / 2, 1 / 25, 50, canvas.height,'#bfaaff',{
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 5,
+                        height: 5,
+                        color: '#bfaaff',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 6,
+                                range: 1,
+                                attackSpeed: 1 / 200,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 200 + globalEnemy.healthMult,
+                                maxHealth: 75 + globalEnemy.healthMult,
+                                defense: 0 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 0.7 + globalEnemy.speedMult,
+                                rotationSpeed: 1,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    })
+                createEnemySpawner(canvas.width * 2 - canvas.width / 2, canvas.height / 2, 1 / 25, 50, canvas.height,'#bfaaff',{
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 5,
+                        height: 5,
+                        color: '#bfaaff',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 6,
+                                range: 1,
+                                attackSpeed: 1 / 200,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 200 + globalEnemy.healthMult,
+                                maxHealth: 75 + globalEnemy.healthMult,
+                                defense: 0 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 0.7 + globalEnemy.speedMult,
+                                rotationSpeed: 1,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    })
+                createEnemySpawner(canvas.width * 2, 0, 1 / 25, canvas.width, 50,'#bfaaff',{
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 5,
+                        height: 5,
+                        color: '#bfaaff',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 6,
+                                range: 1,
+                                attackSpeed: 1 / 200,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 200 + globalEnemy.healthMult,
+                                maxHealth: 75 + globalEnemy.healthMult,
+                                defense: 0 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 0.7 + globalEnemy.speedMult,
+                                rotationSpeed: 1,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    })
+                createEnemySpawner(canvas.width * 2, canvas.height, 1 / 25, canvas.width, 50,'#bfaaff',
+                {
+                        x: kontra.randInt(this.x - this.width / 2, this.x + this.width / 2),
+                        y: kontra.randInt(this.y - this.height / 2, this.y + this.height / 2),
+                        width: 5,
+                        height: 5,
+                        color: '#bfaaff',
+                        stats: {
+                            faction: {
+                                wantedTarget: player,
+                                targetedArr: allies,
+                                alliedArr: enemies,
+                            }, weapons: {
+                                damage: 6,
+                                range: 1,
+                                attackSpeed: 1 / 200,
+                                atkSpeedDT: 0,
+                            }, base: {
+                                health: 200 + globalEnemy.healthMult,
+                                maxHealth: 200 + globalEnemy.healthMult,
+                                defense: 0 + globalEnemy.defenseMult,
+                                healingSpeed: 0,
+                                speed: 0.7 + globalEnemy.speedMult,
+                                rotationSpeed: 1,
+                                rewards: {
+                                    xp: 0,
+                                    gold: 0,
+                                }
+                            },
+                        }
+                    }
+                )
+            }
+        }
+        function enemyDead(enemy) {
+            if (enemy.stats.base.health < 0) {
+                kills += 1
+                kontra.setStoreItem('kills',kills)
+                enemy.ttl = 0
+                enemy.stats.base.health = enemy.initialHealth
+                enemy.stats.base.health = 5
+                neededEnemies -= 1
+                if (neededEnemies <= 0) {
+                    //neededEnemies += arenaIndex * 25
+                    neededEnemies = arenaIndex * 25
+                    checkForArenaUpdate()
+                    arenaIndex += 1
+                }
+            }
+        }
+        canvas.addEventListener('click', event => {
+            currentScene.show()
+        })
+        let currentArena = arenas.arena1()
+        arenas.tutorial()
+        window.addEventListener('focus', () => {currentTrack.volume = 1});
+      window.addEventListener('blur', () => {currentTrack.volume = 0.5});
+        function connect() {
+            createFadingText(canvas.width/2,canvas.height-100,kontra.getStoreItem('deaths') + ' deaths so far.')
+            createFadingText(canvas.width/2,canvas.height-75,kontra.getStoreItem('kills') + ' kills so far.')
+        }
+        window.onload = connect()
+        let loop = kontra.GameLoop({
+            update: (dt) => {
+                currentScene.update(dt)
+                camera.lookAt(currentLook)
+                if (player.stats.base.health <= 0) {
+                    deaths += 1
+                    currentTrack = menu1
+                    boss1.pause()
+                    loop1.pause()
+                    menu1.play()
+                    kontra.setStoreItem('deaths',deaths)
+                    connect()
+                    spawning = false
+                    player.stats.base.health = 40
+                    player.stats.base.maxHealth = 40
+                    player.stats.primary.projAmount = 1
+                    player.stats.primary.damage = 3
+                    player.stats.primary.attackSpeed = 1/90
+                    for(let i=0;i<activeTiles.length;i++){
+                        activeTiles[i].ttl = 0
+                    }
+                    for(let i=0;i<enemies.length;i++){
+                        enemies[i].ttl = 0
+                    }
+                    currentLook = {x:canvas.width/2,y:canvas.height/2}
+                    createEnemySpawner(canvas.width * 2, 0, 1 / 400, canvas.width, 10)
+                    player.x = canvas.width / 2
+                    player.y = canvas.height / 2
+                    neededEnemies = 25
+                }
+                bullets.map(bl => {
+                    enemies.map(en => {
+                        if (kontra.collides(en, bl)) {
+                            bl.ttl = 0
+                            createFadingText(bl.x, bl.y, player.stats.primary.damage, 0.6)
+                            en.stats.base.health -= player.stats.primary.damage
+                            if (player.stats.primary.poison.active) {
+                                en.poisoned = true
+                            }
+                            enemyDead(en)
+                        }
+                    })
+                })
+                // check if an object that needs to be updated should be updated
+                // (so 14 random teleporters across the map doesnt eat fps)
+                staticTiles.map(tile => {
+                    if (tile.dest) {
+                        if (kontra.collides({ x: tile.x, y: tile.y, width: tile.width / 2, height: tile.height / 2 }, player)) {
+                            player.x = tile.dest.x
+                            player.y = tile.dest.y
+                            if (tile.camT) currentLook = tile.dest
+                            if (tile.x == storyTeleporter.x&&tile.y==storyTeleporter.y) {
+                                spawning = true
+                            }
+                            for (let i = 0; i < 5; i++) {
+                                playerTrail(tile.dest.x, tile.dest.y, Math.cos(Math.random() * 2), Math.sin(Math.random() * 2), tile.color)
+                                playerTrail(tile.dest.x, tile.dest.y, Math.cos(-Math.random() - 1), Math.sin(-Math.random() - 1), tile.color)
+                            }
+                        }
+                    }
+                })
+                ct = ct.filter(c => c.isAlive())
+                bullets = bullets.filter(bl => bl.isAlive())
+                enemies = enemies.filter(e => e.isAlive())
+                allies = allies.filter(a => a.isAlive())
+                activeTiles = activeTiles.filter(a=>a.isAlive())
+                camera.objects.map(obj => {
+                    if (obj.ttl <= 0) {
+                        camera.remove(obj)
+                    }
+                })
+            },
+            render() {
+                currentScene.render()
+            }
+        })
+        loop.start()
+//# sourceURL=userscript.js
+    </script>
+</body>
+
+</html>
