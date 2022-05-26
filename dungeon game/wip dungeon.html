@@ -104,9 +104,13 @@ background: linear-gradient(56deg, rgba(158,1,255,1) 0%, rgba(185,170,255,1) 40%
         var arenas = (function () {
             // i dont need to make these objects because they arent needed later
             function tutorial() {
-                createTeleporter(canvas.width-125, 100, 80, 80, {
+                if (kontra.getStoreItem('unkINF')) {
+                    createTeleporter(canvas.width-125, 100, 80, 80, {
+                        x: canvas.width / 2, y: canvas.height / 2
+                    }, 'purple', true, { x: canvas.width / 2, y: canvas.height / 2 })
+                } else {createTeleporter(canvas.width-125, 100, 80, 80, {
                     x: canvas.width / 2, y: canvas.height / 2
-                }, 'red', true, { x: canvas.width / 2, y: canvas.height / 2 })
+                }, 'red', true, { x: canvas.width / 2, y: canvas.height / 2 })}
                 createTeleporter(canvas.width/2, 100, 160, 160, {
                     x: canvas.width / 2, y: canvas.height / 2
                 }, 'red', true, { x: canvas.width / 2, y: canvas.height / 2 },0.05)
@@ -196,37 +200,10 @@ background: linear-gradient(56deg, rgba(158,1,255,1) 0%, rgba(185,170,255,1) 40%
                         createEnemySpawner(canvas.width * 2, 0, 1 / 400, canvas.width, 10)
                     ],
                 }
-            } function arena2() {
-                return {
-                    neededEnemies: 100,
-                    centerXY: {
-                        x: canvas.width * 4,
-                        y: canvas.width / 2,
-                    },
-                    bounds: [
-                        createStaticWall(canvas.width * 4 - canvas.width / 2, canvas.height / 2, 10, canvas.height, 'red'),
-                        createStaticWall(canvas.width * 4 + canvas.width / 2, canvas.height / 2, 10, canvas.height, 'blue'),
-                        createStaticWall(canvas.width * 4, canvas.height, canvas.width, 10, 'green'),
-                        createStaticWall(canvas.width * 4, 0, canvas.width, 10, 'yellow'),
-                    ], cover: [
-
-                    ], text: [
-
-                    ], bosses: [
-
-                    ], enemySpawners: [
-                        createEnemySpawner(canvas.width * 4, canvas.height, 1 / 400, canvas.width, 10),
-                        createEnemySpawner(canvas.width * 4, 0, 1 / 400, canvas.width, 10)
-                    ],
-                }
-            }
-            function createRandArena() {
-
-            }
+            } 
             let arenas = {
                 tutorial,
                 arena1,
-                arena2,
             }
             return arenas
         })();
@@ -323,8 +300,11 @@ background: linear-gradient(56deg, rgba(158,1,255,1) 0%, rgba(185,170,255,1) 40%
                   stats: {
                     base: {
                         // 1,000,000
-                        health: 1000,
-                        maxHealth: 1000000,
+                        health: 15000,
+                        maxHealth: 15000,
+                    }, unlockables: {
+                        inf: true,
+                        mult: false,
                     }
                   },
                   dt: 0,phase: 'entering',
@@ -982,8 +962,7 @@ background: linear-gradient(56deg, rgba(158,1,255,1) 0%, rgba(185,170,255,1) 40%
         camera.add(player,healthBar)
         allies.push(player)
         function checkForArenaUpdate() {
-            neededEnemies = arenaIndex * 20
-            //neededEnemies = 2
+            neededEnemies = arenaIndex * 25
             if (arenaIndex == 1) {
                 createFadingText(
                     canvas.width * 2,
@@ -1285,11 +1264,11 @@ background: linear-gradient(56deg, rgba(158,1,255,1) 0%, rgba(185,170,255,1) 40%
                                 attackSpeed: 1 / 50,
                                 atkSpeedDT: 0,
                             }, base: {
-                                health: 35 + globalEnemy.healthMult,
-                                maxHealth: 35 + globalEnemy.healthMult,
+                                health: 5 + globalEnemy.healthMult,
+                                maxHealth: 5 + globalEnemy.healthMult,
                                 defense: 0 + globalEnemy.defenseMult,
                                 regen: 0,
-                                regenInterval: 1 / 300,
+                                regenInterval: 1 / 500,
                                 perRegen: 2,
                                 speed: 1 + globalEnemy.speedMult,
                                 rotationSpeed: 2,
@@ -1337,11 +1316,11 @@ background: linear-gradient(56deg, rgba(158,1,255,1) 0%, rgba(185,170,255,1) 40%
                                 attackSpeed: 1 / 50,
                                 atkSpeedDT: 0,
                             }, base: {
-                                health: 35 + globalEnemy.healthMult,
-                                maxHealth: 35 + globalEnemy.healthMult,
+                                health: 5 + globalEnemy.healthMult,
+                                maxHealth: 5 + globalEnemy.healthMult,
                                 defense: 0 + globalEnemy.defenseMult,
                                 regen: 0,
-                                regenInterval: 1 / 300,
+                                regenInterval: 1 / 500,
                                 perRegen: 2,
                                 speed: 1 + globalEnemy.speedMult,
                                 rotationSpeed: 2,
@@ -1390,11 +1369,11 @@ background: linear-gradient(56deg, rgba(158,1,255,1) 0%, rgba(185,170,255,1) 40%
                                 attackSpeed: 1 / 50,
                                 atkSpeedDT: 0,
                             }, base: {
-                                health: 35 + globalEnemy.healthMult,
-                                maxHealth: 35 + globalEnemy.healthMult,
+                                health: 5 + globalEnemy.healthMult,
+                                maxHealth: 5 + globalEnemy.healthMult,
                                 defense: 0 + globalEnemy.defenseMult,
                                 regen: 0,
-                                regenInterval: 1 / 300,
+                                regenInterval: 1 / 500,
                                 perRegen: 2,
                                 speed: 1 + globalEnemy.speedMult,
                                 rotationSpeed: 2,
@@ -1442,11 +1421,11 @@ background: linear-gradient(56deg, rgba(158,1,255,1) 0%, rgba(185,170,255,1) 40%
                                 attackSpeed: 1 / 50,
                                 atkSpeedDT: 0,
                             }, base: {
-                                health: 35 + globalEnemy.healthMult,
-                                maxHealth: 35 + globalEnemy.healthMult,
+                                health: 5 + globalEnemy.healthMult,
+                                maxHealth: 5 + globalEnemy.healthMult,
                                 defense: 0 + globalEnemy.defenseMult,
                                 regen: 0,
-                                regenInterval: 1 / 300,
+                                regenInterval: 1 / 500,
                                 perRegen: 2,
                                 speed: 1 + globalEnemy.speedMult,
                                 rotationSpeed: 2,
@@ -2301,17 +2280,20 @@ background: linear-gradient(56deg, rgba(158,1,255,1) 0%, rgba(185,170,255,1) 40%
                 camera.lookAt(currentLook)
                 if (player.stats.base.health <= 0) {
                     deaths += 1
+                    canvas.classList.remove('theFinale')
                     currentTrack = menu1
                     boss1.pause()
                     loop1.pause()
                     menu1.play()
                     kontra.setStoreItem('deaths',deaths)
                     connect()
+                    createFadingText(canvas.width/2,canvas.height/2,'dying isnt fully supported. reload to get full.')
                     spawning = false
                     player.stats.base.health = 40
                     player.stats.base.maxHealth = 40
                     player.stats.primary.projAmount = 1
                     player.stats.primary.damage = 3
+                    player.stats.primary.autoturret = false
                     player.stats.primary.attackSpeed = 1/90
                     for(let i=0;i<activeTiles.length;i++){
                         activeTiles[i].ttl = 0
@@ -2331,6 +2313,8 @@ background: linear-gradient(56deg, rgba(158,1,255,1) 0%, rgba(185,170,255,1) 40%
                             bl.ttl = 0
                             createFadingText(bl.x, bl.y, player.stats.primary.damage, 0.6)
                             en.stats.base.health -= player.stats.primary.damage
+                            try {if (en.stats.unlockables.inf) kontra.setStoreItem('unkINF',true)}
+                            catch {}
                             if (player.stats.primary.poison.active) {
                                 en.poisoned = true
                             }
